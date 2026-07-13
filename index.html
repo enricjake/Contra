@@ -156,6 +156,15 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const aabb = (a, b) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
+function findGroundY(x) {
+  for (const p of platforms) {
+    if (p.type === 'ground' && x >= p.x && x <= p.x + p.w) {
+      return p.y;
+    }
+  }
+  return H - 40; // fallback ground level
+}
+
 // ---------- Game State ----------
 const STATE = { TITLE: 0, PLAYING: 1, PAUSED: 2, DEAD: 3, GAMEOVER: 4, CLEAR: 5 };
 let gameState = STATE.TITLE;
@@ -486,12 +495,10 @@ function shoot() {
     }
   } else if (w.type === 'fire') {
     const b = makeBullet(bx, by, dx * w.speed, dy * w.speed, w);
-    b.fire = true;
     b.t = 0;
     bullets.push(b);
   } else if (w.type === 'laser') {
     const b = makeBullet(bx, by, dx * w.speed, dy * w.speed, w);
-    b.laser = true;
     b.len = 40;
     bullets.push(b);
   } else {
@@ -505,7 +512,7 @@ function shoot() {
 function makeBullet(x, y, vx, vy, w) {
   return {
     x, y, w: w.type === 'laser' ? 40 : 6, h: w.type === 'laser' ? 4 : 4,
-    vx, vy, color: w.color, dmg: w.dmg, pierce: w.pierce,
+    vx, vy, color: w.color, dmg: w.dmg, pierce: w.pierce, type: w.type,
     life: 80, hits: new Set(),
   };
 }
@@ -623,7 +630,7 @@ function updateBullets() {
     b.x += b.vx;
     b.y += b.vy;
     b.life--;
-    if (b.fire) {
+    if (b.type === 'fire') {
       b.t = (b.t || 0) + 0.3;
       b.vy += Math.sin(b.t) * 0.3;
     }
@@ -1121,7 +1128,7 @@ function drawBullets() {
   // Player bullets
   for (const b of bullets) {
     const sx = b.x - cameraX;
-    if (b.laser) {
+    if (b.type === 'laser') {
       // Laser beam
       const angle = Math.atan2(b.vy, b.vx);
       ctx.save();
@@ -1132,7 +1139,7 @@ function drawBullets() {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, -1, b.len, 2);
       ctx.restore();
-    } else if (b.fire) {
+    } else if (b.type === 'fire') {
       // Fireball
       ctx.fillStyle = b.color;
       ctx.beginPath();
@@ -1201,7 +1208,7 @@ function drawPowerups() {
       ctx.textBaseline = 'middle';
       ctx.fillText(pu.weapon, sx + pu.w/2, pu.y + bob + pu.h/2 + 1);
       // Glow
-      ctx.fillStyle = w.color.replace(')', ',0.2)').replace('rgb','rgba');
+      ctx.fillStyle = w.color;
       ctx.globalAlpha = 0.2;
       ctx.beginPath();
       ctx.arc(sx + pu.w/2, pu.y + bob + pu.h/2, 18, 0, Math.PI*2);
@@ -1309,7 +1316,7 @@ function update() {
         resetPlayer(player.facing);
         player.x = clamp(cameraX + 100, 0, levelWidth - player.w);
         // Find ground
-        player.y = 200;
+        player.y = findGroundY(player.x) - player.h;
         gameState = STATE.PLAYING;
       }
     }
