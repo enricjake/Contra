@@ -182,11 +182,11 @@ let capsuleTimer = 0;
 
 // ---------- Weapons ----------
 const WEAPONS = {
-  R: { name: 'RIFLE',      rate: 16, speed: 9,  color: '#ffe040', dmg: 1, pierce: false, type: 'normal' },
-  M: { name: 'MACHINE',    rate: 7,  speed: 10, color: '#ff8030', dmg: 1, pierce: false, type: 'normal' },
-  S: { name: 'SPREAD',     rate: 14, speed: 8,  color: '#40c0ff', dmg: 1, pierce: false, type: 'spread' },
-  L: { name: 'LASER',      rate: 20, speed: 16, color: '#ff40ff', dmg: 2, pierce: true,  type: 'laser'  },
-  F: { name: 'FIRE',       rate: 12, speed: 7,  color: '#ff6020', dmg: 2, pierce: true,  type: 'fire'   },
+  R: { name: 'RIFLE',      rate: 20, speed: 6,  color: '#ffe040', dmg: 1, pierce: false, type: 'normal' },
+  M: { name: 'MACHINE',    rate: 10, speed: 7,  color: '#ff8030', dmg: 1, pierce: false, type: 'normal' },
+  S: { name: 'SPREAD',     rate: 18, speed: 6,  color: '#40c0ff', dmg: 1, pierce: false, type: 'spread' },
+  L: { name: 'LASER',      rate: 24, speed: 12, color: '#ff40ff', dmg: 2, pierce: true,  type: 'laser'  },
+  F: { name: 'FIRE',       rate: 16, speed: 5,  color: '#ff6020', dmg: 2, pierce: true,  type: 'fire'   },
 };
 let currentWeapon = 'R';
 let shootCooldown = 0;
@@ -381,22 +381,22 @@ function updatePlayer() {
   }
 
   // Horizontal movement
-  const speed = player.crouch ? 0 : 2.4;
+  const speed = player.crouch ? 0 : 1.6;
   if (left && !player.crouch) player.vx = -speed;
   else if (right && !player.crouch) player.vx = speed;
   else player.vx *= 0.7;
 
   // Jump
   if (jumpHeld && player.onGround && !player.crouch) {
-    player.vy = -8.5;
+    player.vy = -6.5;
     player.onGround = false;
   }
   // Variable jump
-  if (!jumpHeld && player.vy < -4) player.vy = -4;
+  if (!jumpHeld && player.vy < -3) player.vy = -3;
 
   // Gravity
-  player.vy += 0.42;
-  if (player.vy > 12) player.vy = 12;
+  player.vy += 0.30;
+  if (player.vy > 9) player.vy = 9;
 
   // Apply movement with collision
   player.x += player.vx;
@@ -526,7 +526,7 @@ function enemyShoot(e) {
   let dx = px - cx, dy = py - cy;
   const len = Math.sqrt(dx*dx + dy*dy) || 1;
   dx /= len; dy /= len;
-  const sp = 3.5;
+  const sp = 2.0;
   eBullets.push({
     x: cx, y: cy, w: 6, h: 6,
     vx: dx * sp, vy: dy * sp,
@@ -545,14 +545,14 @@ function updateEnemies() {
       const dx = player.x - e.x;
       const dist = Math.abs(dx);
       if (dist > 250 && dist < 600) {
-        e.vx = Math.sign(dx) * 1.0;
+        e.vx = Math.sign(dx) * 0.6;
         e.dir = Math.sign(dx) || e.dir;
       } else {
         e.vx *= 0.8;
       }
       // Gravity
-      e.vy += 0.42;
-      if (e.vy > 12) e.vy = 12;
+      e.vy += 0.30;
+      if (e.vy > 9) e.vy = 9;
       e.x += e.vx;
       e.y += e.vy;
       // Ground
@@ -614,7 +614,7 @@ function spawnCapsule() {
     x: fromLeft ? cameraX - 30 : cameraX + W + 30,
     y: rand(100, 220),
     w: 28, h: 28,
-    vx: fromLeft ? 1.2 : -1.2,
+    vx: fromLeft ? 0.8 : -0.8,
     vy: 0,
     bobT: 0,
     hp: 1,
