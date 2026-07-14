@@ -179,6 +179,8 @@ let shakeTime = 0, shakeMag = 0;
 let flashTime = 0;
 let spawnTimer = 0;
 let capsuleTimer = 0;
+let dt = 1.0;
+let lastTime = 0;
 
 // ---------- Weapons ----------
 const WEAPONS = {
@@ -326,7 +328,7 @@ function screenFlash(intensity) {
 
 function updateFlash() {
   if (flashTime > 0) {
-    flashTime -= 0.05;
+    flashTime -= 0.05 * dt;
     flashEl.style.opacity = clamp(flashTime, 0, 1);
   }
 }
@@ -384,7 +386,7 @@ function updatePlayer() {
   const speed = player.crouch ? 0 : 1.6;
   if (left && !player.crouch) player.vx = -speed;
   else if (right && !player.crouch) player.vx = speed;
-  else player.vx *= 0.7;
+  else player.vx *= Math.pow(0.7, dt);
 
   // Jump
   if (jumpHeld && player.onGround && !player.crouch) {
@@ -395,13 +397,13 @@ function updatePlayer() {
   if (!jumpHeld && player.vy < -3) player.vy = -3;
 
   // Gravity
-  player.vy += 0.30;
+  player.vy += 0.30 * dt;
   if (player.vy > 9) player.vy = 9;
 
   // Apply movement with collision
-  player.x += player.vx;
+  player.x += player.vx * dt;
   resolvePlatformsX();
-  player.y += player.vy;
+  player.y += player.vy * dt;
   player.onGround = false;
   resolvePlatformsY();
 
@@ -412,16 +414,16 @@ function updatePlayer() {
 
   // Run animation
   if (Math.abs(player.vx) > 0.5 && player.onGround) {
-    player.runFrame += 0.25;
+    player.runFrame += 0.25 * dt;
   } else {
     player.runFrame = 0;
   }
 
   // Invulnerability
-  if (player.invuln > 0) player.invuln--;
+  if (player.invuln > 0) player.invuln -= dt;
 
   // Shooting
-  if (shootCooldown > 0) shootCooldown--;
+  if (shootCooldown > 0) shootCooldown -= dt;
   if (shootHeld && shootCooldown <= 0) {
     shoot();
     shootCooldown = WEAPONS[currentWeapon].rate;
@@ -538,7 +540,7 @@ function enemyShoot(e) {
 function updateEnemies() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
-    e.hitFlash = Math.max(0, e.hitFlash - 1);
+    e.hitFlash = Math.max(0, e.hitFlash - dt);
 
     if (e.type === 'soldier') {
       // Move toward player horizontally if on screen
@@ -548,13 +550,13 @@ function updateEnemies() {
         e.vx = Math.sign(dx) * 0.6;
         e.dir = Math.sign(dx) || e.dir;
       } else {
-        e.vx *= 0.8;
+        e.vx *= Math.pow(0.8, dt);
       }
       // Gravity
-      e.vy += 0.30;
+      e.vy += 0.30 * dt;
       if (e.vy > 9) e.vy = 9;
-      e.x += e.vx;
-      e.y += e.vy;
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
       // Ground
       e.onGround = false;
       for (const p of platforms) {
@@ -568,14 +570,14 @@ function updateEnemies() {
       // Boundary
       if (e.x < 0) e.x = 0;
       // Shoot
-      e.fireTimer--;
+      e.fireTimer -= dt;
       if (e.fireTimer <= 0 && Math.abs(player.x - e.x) < 450) {
         enemyShoot(e);
         e.fireTimer = randi(90, 200);
       }
-      e.animFrame += Math.abs(e.vx) > 0.1 ? 0.15 : 0;
+      e.animFrame += (Math.abs(e.vx) > 0.1 ? 0.15 : 0) * dt;
     } else if (e.type === 'turret') {
-      e.fireTimer--;
+      e.fireTimer -= dt;
       if (e.fireTimer <= 0 && Math.abs(player.x - e.x) < 500) {
         enemyShoot(e);
         e.fireTimer = randi(60, 120);
@@ -590,7 +592,7 @@ function updateEnemies() {
   }
 
   // Dynamic spawning
-  spawnTimer--;
+  spawnTimer -= dt;
   if (spawnTimer <= 0 && enemies.filter(e => e.type === 'soldier').length < 6) {
     const sx = cameraX + W + rand(50, 200);
     if (sx < levelWidth - 100) {
@@ -600,7 +602,7 @@ function updateEnemies() {
   }
 
   // Flying capsule (power-up carrier)
-  capsuleTimer--;
+  capsuleTimer -= dt;
   if (capsuleTimer <= 0) {
     spawnCapsule();
     capsuleTimer = randi(900, 1600);
@@ -627,12 +629,12 @@ function updateBullets() {
   // Player bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    b.life--;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
     if (b.type === 'fire') {
-      b.t = (b.t || 0) + 0.3;
-      b.vy += Math.sin(b.t) * 0.3;
+      b.t = (b.t || 0) + 0.3 * dt;
+      b.vy += Math.sin(b.t) * 0.3 * dt;
     }
     // Off screen
     if (b.life <= 0 || b.x < cameraX - 50 || b.x > cameraX + W + 50 || b.y < -50 || b.y > H + 50) {
@@ -682,9 +684,9 @@ function updateBullets() {
   // Enemy bullets
   for (let i = eBullets.length - 1; i >= 0; i--) {
     const b = eBullets[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    b.life--;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
     if (b.life <= 0 || b.x < cameraX - 50 || b.x > cameraX + W + 50 || b.y > H + 50 || b.y < -50) {
       eBullets.splice(i, 1); continue;
     }
@@ -700,19 +702,19 @@ function updatePowerups() {
   for (let i = powerups.length - 1; i >= 0; i--) {
     const pu = powerups[i];
     if (pu.type === 'capsule') {
-      pu.x += pu.vx;
-      pu.bobT += 0.08;
+      pu.x += pu.vx * dt;
+      pu.bobT += 0.08 * dt;
       pu.y += Math.sin(pu.bobT) * 0.5;
-      pu.vy += 0.1;
-      pu.y += pu.vy;
+      pu.vy += 0.1 * dt;
+      pu.y += pu.vy * dt;
       if (pu.y > 300) { pu.y = 300; pu.vy = -2; }
       if (pu.x < cameraX - 100 || pu.x > cameraX + W + 100) {
         powerups.splice(i, 1); continue;
       }
     } else if (pu.type === 'weapon') {
-      pu.vy += 0.42;
+      pu.vy += 0.42 * dt;
       if (pu.vy > 12) pu.vy = 12;
-      pu.y += pu.vy;
+      pu.y += pu.vy * dt;
       // Land on platforms
       for (const p of platforms) {
         if (aabb(pu, p) && pu.vy > 0) {
@@ -721,7 +723,7 @@ function updatePowerups() {
         }
       }
       if (pu.y + pu.h >= 380) { pu.y = 380 - pu.h; pu.vy = 0; }
-      pu.bobT = (pu.bobT || 0) + 0.1;
+      pu.bobT = (pu.bobT || 0) + 0.1 * dt;
       // Collect
       if (!player.dead && aabb(pu, player)) {
         currentWeapon = pu.weapon;
@@ -741,16 +743,16 @@ function updatePowerups() {
 function updateParticles() {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.15;
-    p.life--;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 0.15 * dt;
+    p.life -= dt;
     if (p.life <= 0) particles.splice(i, 1);
   }
   for (let i = explosions.length - 1; i >= 0; i--) {
     const e = explosions[i];
-    e.r += (e.maxR - e.r) * 0.3;
-    e.life--;
+    e.r += (e.maxR - e.r) * (1 - Math.pow(1 - 0.3, dt));
+    e.life -= dt;
     if (e.life <= 0) explosions.splice(i, 1);
   }
 }
@@ -777,7 +779,7 @@ function triggerStageClear() {
 // ---------- Camera ----------
 function updateCamera() {
   const targetX = player.x - W / 2 + player.w / 2;
-  cameraX += (targetX - cameraX) * 0.1;
+  cameraX += (targetX - cameraX) * (1 - Math.pow(1 - 0.1, dt));
   cameraX = clamp(cameraX, 0, levelWidth - W);
 }
 
@@ -1299,7 +1301,7 @@ function update() {
     updateParticles();
     updateCamera();
   } else if (gameState === STATE.DEAD) {
-    stateTimer++;
+    stateTimer += dt;
     updateBullets();
     updateParticles();
     updateEnemies();
@@ -1311,6 +1313,7 @@ function update() {
           hiScore = score;
           localStorage.setItem('contra_hi', String(hiScore));
         }
+        showOverlay('GAME OVER', 'The jungle claims another soldier...', false);
       } else {
         // Respawn
         resetPlayer(player.facing);
@@ -1321,7 +1324,7 @@ function update() {
       }
     }
   } else if (gameState === STATE.CLEAR) {
-    stateTimer++;
+    stateTimer += dt;
     updateParticles();
     if (stateTimer > 180) {
       // Next stage or victory
@@ -1340,10 +1343,10 @@ function update() {
       }
     }
   } else if (gameState === STATE.GAMEOVER) {
-    stateTimer++;
+    stateTimer += dt;
   }
 
-  if (shakeTime > 0) shakeTime--;
+  if (shakeTime > 0) shakeTime -= dt;
   updateFlash();
 
   // Clear justPressed at end of frame
@@ -1396,7 +1399,11 @@ function showOverlay(title, subtitle, isWin) {
   overlay.style.display = 'flex';
 }
 
-function gameLoop() {
+function gameLoop(timestamp) {
+  if (lastTime === 0) lastTime = timestamp;
+  dt = Math.min((timestamp - lastTime) / 16.667, 3);
+  lastTime = timestamp;
+
   // Handle global key inputs
   if (gameState === STATE.TITLE) {
     if (consumeKey('Enter') || consumeKey('NumpadEnter')) {
