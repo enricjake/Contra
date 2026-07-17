@@ -1683,6 +1683,7 @@ function gameLoop(timestamp) {
   } else if (gameState === STATE.INTRO) {
     if (consumeKey('Enter') || consumeKey('NumpadEnter')) {
       stageIntroEl.style.display = 'none';
+      overlay.style.display = 'none';
       initLevel();
       gameState = STATE.PLAYING;
     }
