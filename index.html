@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CONTRA - Jungle Run & Gun</title>
+<title>CONTRA - Run & Gun</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -77,6 +77,7 @@
   }
   @keyframes blink { 50% { opacity: 0; } }
   #weaponName { color: #ffd700; }
+  #stageName { color: #4a9e3a; letter-spacing: 2px; }
   #flash {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -84,6 +85,41 @@
     opacity: 0;
     pointer-events: none;
     z-index: 15;
+  }
+  #stageIntro {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.95);
+    color: #e8e0d0;
+    z-index: 25;
+    text-align: center;
+  }
+  #stageIntro .stage-number {
+    font-size: 24px;
+    color: #888;
+    letter-spacing: 6px;
+    margin-bottom: 10px;
+  }
+  #stageIntro .stage-title {
+    font-size: 48px;
+    letter-spacing: 8px;
+    margin-bottom: 15px;
+    text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+  }
+  #stageIntro .stage-subtitle {
+    font-size: 16px;
+    color: #b8b0a0;
+    letter-spacing: 3px;
+    margin-bottom: 30px;
+  }
+  #stageIntro .blink {
+    font-size: 14px;
+    color: #e8e0d0;
+    animation: blink 1s infinite;
   }
 </style>
 </head>
@@ -97,22 +133,28 @@
     </div>
     <div class="right">
       <span id="weaponName">RIFLE</span>
-      <span>STAGE <span id="stageDisplay">1</span></span>
+      <span id="stageName">JUNGLE</span>
       <div id="livesDisplay"></div>
     </div>
   </div>
   <div id="flash"></div>
+  <div id="stageIntro">
+    <div class="stage-number" id="introStageNumber">STAGE 1</div>
+    <div class="stage-title" id="introStageTitle">JUNGLE</div>
+    <div class="stage-subtitle" id="introStageSubtitle">Pierce the enemy jungle stronghold</div>
+    <p class="blink">PRESS ENTER TO START</p>
+  </div>
   <div id="overlay">
     <h1>CONTRA</h1>
-    <h2>JUNGLE MISSION</h2>
-    <p>Pierce the enemy jungle stronghold.</p>
+    <h2>RUN & GUN</h2>
+    <p>Three stages. One soldier. No mercy.</p>
     <p>One hit kills. Stay sharp, soldier.</p>
     <div class="controls">
-      <p><span>ARROWS / WASD</span> &mdash; Move &amp; Aim</p>
-      <p><span>SPACE / W / UP</span> &mdash; Jump</p>
-      <p><span>Z / J</span> &mdash; Shoot &nbsp;&nbsp; <span>DOWN+S</span> &mdash; Crouch</p>
-      <p><span>UP</span> &mdash; Aim Up &nbsp;&nbsp; <span>UP+DIR</span> &mdash; Aim Diagonal</p>
-      <p><span>P</span> &mdash; Pause &nbsp;&nbsp; <span>ENTER</span> &mdash; Start / Continue</p>
+      <p><span>ARROWS / WASD</span> — Move & Aim</p>
+      <p><span>SPACE / W / UP</span> — Jump</p>
+      <p><span>Z / J</span> — Shoot &nbsp;&nbsp; <span>DOWN+S</span> — Crouch</p>
+      <p><span>UP</span> — Aim Up &nbsp;&nbsp; <span>UP+DIR</span> — Aim Diagonal</p>
+      <p><span>P</span> — Pause &nbsp;&nbsp; <span>ENTER</span> — Start / Continue</p>
     </div>
     <p class="blink">PRESS ENTER TO START</p>
   </div>
@@ -120,7 +162,7 @@
 
 <script>
 // ============================================================
-//  CONTRA - Jungle Run & Gun  (original implementation)
+//  CONTRA - Run & Gun (3-stage implementation)
 // ============================================================
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -132,7 +174,11 @@ const scoreEl = document.getElementById('scoreDisplay');
 const hiScoreEl = document.getElementById('hiScoreDisplay');
 const livesEl = document.getElementById('livesDisplay');
 const weaponEl = document.getElementById('weaponName');
-const stageEl = document.getElementById('stageDisplay');
+const stageNameEl = document.getElementById('stageName');
+const stageIntroEl = document.getElementById('stageIntro');
+const introStageNumber = document.getElementById('introStageNumber');
+const introStageTitle = document.getElementById('introStageTitle');
+const introStageSubtitle = document.getElementById('introStageSubtitle');
 
 // ---------- Input ----------
 const keys = {};
@@ -162,11 +208,245 @@ function findGroundY(x) {
       return p.y;
     }
   }
-  return H - 40; // fallback ground level
+  return H - 40;
 }
 
+// ---------- Stage Definitions ----------
+const STAGES = {
+  1: {
+    name: 'JUNGLE',
+    subtitle: 'Pierce the enemy jungle stronghold',
+    levelWidth: 5200,
+    theme: {
+      skyTop: '#1a2a4a',
+      skyMid: '#2a4a6a',
+      skyBot: '#3a6a4a',
+      ground: '#3a2a1a',
+      groundTop: '#2a4a1a',
+      grass: '#4a7a2a',
+      ledge: '#5a3a1a',
+      ledgeTop: '#6a4a2a',
+      moss: '#3a6a2a',
+      mountain: '#1a3a2a',
+      bgTree: '#0a2a0a',
+      bgTreeLeaf: '#1a3a1a',
+      tree: '#1a4a1a',
+      treeLeaf: '#2a5a2a',
+      bush: '#1a3a1a',
+      bushLeaf: '#2a5a2a',
+      rock: '#4a4a4a',
+      rockLight: '#5a5a5a',
+    },
+    platforms: [
+      { x: 0,    y: 340, w: 600,  h: 40, type: 'ground' },
+      { x: 680,  y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 1280, y: 340, w: 700,  h: 40, type: 'ground' },
+      { x: 2100, y: 340, w: 400,  h: 40, type: 'ground' },
+      { x: 2600, y: 340, w: 600,  h: 40, type: 'ground' },
+      { x: 3300, y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 3900, y: 340, w: 1300, h: 40, type: 'ground' },
+      { x: 200,  y: 260, w: 120, h: 14, type: 'ledge' },
+      { x: 420,  y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 900,  y: 250, w: 140, h: 14, type: 'ledge' },
+      { x: 1100, y: 190, w: 100, h: 14, type: 'ledge' },
+      { x: 1450, y: 250, w: 120, h: 14, type: 'ledge' },
+      { x: 1700, y: 200, w: 110, h: 14, type: 'ledge' },
+      { x: 2150, y: 260, w: 130, h: 14, type: 'ledge' },
+      { x: 2350, y: 200, w: 100, h: 14, type: 'ledge' },
+      { x: 2750, y: 250, w: 140, h: 14, type: 'ledge' },
+      { x: 3000, y: 195, w: 100, h: 14, type: 'ledge' },
+      { x: 3400, y: 250, w: 120, h: 14, type: 'ledge' },
+      { x: 3650, y: 200, w: 100, h: 14, type: 'ledge' },
+      { x: 4100, y: 260, w: 120, h: 14, type: 'ledge' },
+      { x: 4350, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 4600, y: 260, w: 120, h: 14, type: 'ledge' },
+    ],
+    enemies: [
+      { x: 750, type: 'soldier', dir: 1 },
+      { x: 1050, type: 'soldier', dir: -1 },
+      { x: 1400, type: 'turret' },
+      { x: 1800, type: 'soldier', dir: -1 },
+      { x: 2200, type: 'soldier', dir: 1 },
+      { x: 2500, type: 'turret' },
+      { x: 2800, type: 'soldier', dir: -1 },
+      { x: 3100, type: 'soldier', dir: 1 },
+      { x: 3500, type: 'turret' },
+      { x: 3800, type: 'soldier', dir: -1 },
+      { x: 4200, type: 'soldier', dir: 1 },
+      { x: 4500, type: 'turret' },
+      { x: 4800, type: 'soldier', dir: -1 },
+    ],
+  },
+  2: {
+    name: 'ENEMY BASE',
+    subtitle: 'Infiltrate the fortified stronghold',
+    levelWidth: 6000,
+    theme: {
+      skyTop: '#1a1a2a',
+      skyMid: '#2a2a3a',
+      skyBot: '#3a3a4a',
+      ground: '#3a3a3a',
+      groundTop: '#4a4a4a',
+      grass: '#5a5a5a',
+      ledge: '#5a5a5a',
+      ledgeTop: '#6a6a6a',
+      moss: '#4a4a4a',
+      mountain: '#2a2a3a',
+      bgTree: '#1a1a2a',
+      bgTreeLeaf: '#2a2a3a',
+      tree: '#3a3a4a',
+      treeLeaf: '#4a4a5a',
+      bush: '#3a3a3a',
+      bushLeaf: '#4a4a4a',
+      rock: '#5a5a5a',
+      rockLight: '#6a6a6a',
+    },
+    platforms: [
+      { x: 0,    y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 580,  y: 340, w: 400,  h: 40, type: 'ground' },
+      { x: 1060, y: 340, w: 600,  h: 40, type: 'ground' },
+      { x: 1740, y: 340, w: 350,  h: 40, type: 'ground' },
+      { x: 2170, y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 2750, y: 340, w: 450,  h: 40, type: 'ground' },
+      { x: 3280, y: 340, w: 600,  h: 40, type: 'ground' },
+      { x: 3960, y: 340, w: 400,  h: 40, type: 'ground' },
+      { x: 4440, y: 340, w: 550,  h: 40, type: 'ground' },
+      { x: 5070, y: 340, w: 930,  h: 40, type: 'ground' },
+      { x: 150,  y: 270, w: 100, h: 14, type: 'ledge' },
+      { x: 350,  y: 220, w: 110, h: 14, type: 'ledge' },
+      { x: 620,  y: 260, w: 120, h: 14, type: 'ledge' },
+      { x: 850,  y: 200, w: 100, h: 14, type: 'ledge' },
+      { x: 1100, y: 250, w: 130, h: 14, type: 'ledge' },
+      { x: 1350, y: 190, w: 110, h: 14, type: 'ledge' },
+      { x: 1600, y: 260, w: 100, h: 14, type: 'ledge' },
+      { x: 1850, y: 210, w: 120, h: 14, type: 'ledge' },
+      { x: 2100, y: 270, w: 100, h: 14, type: 'ledge' },
+      { x: 2350, y: 200, w: 130, h: 14, type: 'ledge' },
+      { x: 2600, y: 250, w: 110, h: 14, type: 'ledge' },
+      { x: 2850, y: 195, w: 100, h: 14, type: 'ledge' },
+      { x: 3100, y: 260, w: 120, h: 14, type: 'ledge' },
+      { x: 3400, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 3650, y: 270, w: 110, h: 14, type: 'ledge' },
+      { x: 3900, y: 200, w: 100, h: 14, type: 'ledge' },
+      { x: 4150, y: 260, w: 130, h: 14, type: 'ledge' },
+      { x: 4400, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 4650, y: 270, w: 120, h: 14, type: 'ledge' },
+      { x: 4900, y: 200, w: 110, h: 14, type: 'ledge' },
+    ],
+    enemies: [
+      { x: 650, type: 'soldier', dir: 1 },
+      { x: 900, type: 'turret' },
+      { x: 1200, type: 'soldier', dir: -1 },
+      { x: 1500, type: 'soldier', dir: 1 },
+      { x: 1800, type: 'turret' },
+      { x: 2050, type: 'soldier', dir: -1 },
+      { x: 2300, type: 'soldier', dir: 1 },
+      { x: 2550, type: 'turret' },
+      { x: 2800, type: 'soldier', dir: -1 },
+      { x: 3050, type: 'turret' },
+      { x: 3350, type: 'soldier', dir: 1 },
+      { x: 3600, type: 'soldier', dir: -1 },
+      { x: 3850, type: 'turret' },
+      { x: 4100, type: 'soldier', dir: 1 },
+      { x: 4350, type: 'turret' },
+      { x: 4600, type: 'soldier', dir: -1 },
+      { x: 4850, type: 'soldier', dir: 1 },
+    ],
+  },
+  3: {
+    name: 'ALIEN FORTRESS',
+    subtitle: 'Destroy the alien menace at its source',
+    levelWidth: 6800,
+    theme: {
+      skyTop: '#1a0a1a',
+      skyMid: '#2a1a2a',
+      skyBot: '#3a1a2a',
+      ground: '#2a1a2a',
+      groundTop: '#3a2a3a',
+      grass: '#4a2a3a',
+      ledge: '#3a2a3a',
+      ledgeTop: '#4a3a4a',
+      moss: '#4a1a3a',
+      mountain: '#1a0a1a',
+      bgTree: '#1a0a1a',
+      bgTreeLeaf: '#2a1a2a',
+      tree: '#2a1a2a',
+      treeLeaf: '#3a2a3a',
+      bush: '#2a1a2a',
+      bushLeaf: '#3a2a3a',
+      rock: '#4a3a4a',
+      rockLight: '#5a4a5a',
+    },
+    platforms: [
+      { x: 0,    y: 340, w: 450,  h: 40, type: 'ground' },
+      { x: 530,  y: 340, w: 380,  h: 40, type: 'ground' },
+      { x: 990,  y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 1570, y: 340, w: 320,  h: 40, type: 'ground' },
+      { x: 1970, y: 340, w: 450,  h: 40, type: 'ground' },
+      { x: 2500, y: 340, w: 380,  h: 40, type: 'ground' },
+      { x: 2960, y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 3540, y: 340, w: 350,  h: 40, type: 'ground' },
+      { x: 3970, y: 340, w: 450,  h: 40, type: 'ground' },
+      { x: 4500, y: 340, w: 380,  h: 40, type: 'ground' },
+      { x: 4960, y: 340, w: 500,  h: 40, type: 'ground' },
+      { x: 5540, y: 340, w: 350,  h: 40, type: 'ground' },
+      { x: 5970, y: 340, w: 830,  h: 40, type: 'ground' },
+      { x: 100,  y: 280, w: 100, h: 14, type: 'ledge' },
+      { x: 300,  y: 230, w: 110, h: 14, type: 'ledge' },
+      { x: 560,  y: 270, w: 100, h: 14, type: 'ledge' },
+      { x: 760,  y: 210, w: 120, h: 14, type: 'ledge' },
+      { x: 1020, y: 260, w: 100, h: 14, type: 'ledge' },
+      { x: 1220, y: 200, w: 130, h: 14, type: 'ledge' },
+      { x: 1450, y: 270, w: 110, h: 14, type: 'ledge' },
+      { x: 1650, y: 220, w: 100, h: 14, type: 'ledge' },
+      { x: 1880, y: 280, w: 120, h: 14, type: 'ledge' },
+      { x: 2080, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 2300, y: 270, w: 130, h: 14, type: 'ledge' },
+      { x: 2530, y: 220, w: 100, h: 14, type: 'ledge' },
+      { x: 2750, y: 280, w: 110, h: 14, type: 'ledge' },
+      { x: 2980, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 3200, y: 270, w: 120, h: 14, type: 'ledge' },
+      { x: 3420, y: 220, w: 100, h: 14, type: 'ledge' },
+      { x: 3640, y: 280, w: 130, h: 14, type: 'ledge' },
+      { x: 3860, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 4080, y: 270, w: 110, h: 14, type: 'ledge' },
+      { x: 4300, y: 220, w: 100, h: 14, type: 'ledge' },
+      { x: 4520, y: 280, w: 120, h: 14, type: 'ledge' },
+      { x: 4740, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 4960, y: 270, w: 130, h: 14, type: 'ledge' },
+      { x: 5180, y: 220, w: 100, h: 14, type: 'ledge' },
+      { x: 5400, y: 280, w: 110, h: 14, type: 'ledge' },
+      { x: 5620, y: 210, w: 100, h: 14, type: 'ledge' },
+      { x: 5840, y: 270, w: 120, h: 14, type: 'ledge' },
+    ],
+    enemies: [
+      { x: 600, type: 'soldier', dir: 1 },
+      { x: 850, type: 'turret' },
+      { x: 1100, type: 'soldier', dir: -1 },
+      { x: 1350, type: 'soldier', dir: 1 },
+      { x: 1600, type: 'turret' },
+      { x: 1850, type: 'soldier', dir: -1 },
+      { x: 2100, type: 'turret' },
+      { x: 2350, type: 'soldier', dir: 1 },
+      { x: 2600, type: 'soldier', dir: -1 },
+      { x: 2850, type: 'turret' },
+      { x: 3100, type: 'soldier', dir: 1 },
+      { x: 3350, type: 'turret' },
+      { x: 3600, type: 'soldier', dir: -1 },
+      { x: 3850, type: 'soldier', dir: 1 },
+      { x: 4100, type: 'turret' },
+      { x: 4350, type: 'soldier', dir: -1 },
+      { x: 4600, type: 'turret' },
+      { x: 4850, type: 'soldier', dir: 1 },
+      { x: 5100, type: 'soldier', dir: -1 },
+      { x: 5350, type: 'turret' },
+      { x: 5600, type: 'soldier', dir: 1 },
+    ],
+  },
+};
+
 // ---------- Game State ----------
-const STATE = { TITLE: 0, PLAYING: 1, PAUSED: 2, DEAD: 3, GAMEOVER: 4, CLEAR: 5 };
+const STATE = { TITLE: 0, INTRO: 1, PLAYING: 2, PAUSED: 3, DEAD: 4, GAMEOVER: 5, CLEAR: 6 };
 let gameState = STATE.TITLE;
 let score = 0;
 let hiScore = parseInt(localStorage.getItem('contra_hi') || '0');
@@ -181,6 +461,7 @@ let spawnTimer = 0;
 let capsuleTimer = 0;
 let dt = 1.0;
 let lastTime = 0;
+let currentTheme = STAGES[1].theme;
 
 // ---------- Weapons ----------
 const WEAPONS = {
@@ -214,6 +495,10 @@ function resetPlayer(facing = 1) {
 }
 
 function initLevel() {
+  const stageData = STAGES[stage];
+  currentTheme = stageData.theme;
+  levelWidth = stageData.levelWidth;
+
   resetPlayer();
   bullets = [];
   eBullets = [];
@@ -225,63 +510,29 @@ function initLevel() {
   spawnTimer = 120;
   capsuleTimer = 600;
 
-  // Platforms: jungle ledges at multiple heights
-  platforms = [
-    // ground (implicit at y = H - 40)
-    { x: 0,    y: 340, w: 600,  h: 40, type: 'ground' },
-    { x: 680,  y: 340, w: 500,  h: 40, type: 'ground' },
-    { x: 1280, y: 340, w: 700,  h: 40, type: 'ground' },
-    { x: 2100, y: 340, w: 400,  h: 40, type: 'ground' },
-    { x: 2600, y: 340, w: 600,  h: 40, type: 'ground' },
-    { x: 3300, y: 340, w: 500,  h: 40, type: 'ground' },
-    { x: 3900, y: 340, w: 1300, h: 40, type: 'ground' },
-    // elevated ledges
-    { x: 200,  y: 260, w: 120, h: 14, type: 'ledge' },
-    { x: 420,  y: 210, w: 100, h: 14, type: 'ledge' },
-    { x: 900,  y: 250, w: 140, h: 14, type: 'ledge' },
-    { x: 1100, y: 190, w: 100, h: 14, type: 'ledge' },
-    { x: 1450, y: 250, w: 120, h: 14, type: 'ledge' },
-    { x: 1700, y: 200, w: 110, h: 14, type: 'ledge' },
-    { x: 2150, y: 260, w: 130, h: 14, type: 'ledge' },
-    { x: 2350, y: 200, w: 100, h: 14, type: 'ledge' },
-    { x: 2750, y: 250, w: 140, h: 14, type: 'ledge' },
-    { x: 3000, y: 195, w: 100, h: 14, type: 'ledge' },
-    { x: 3400, y: 250, w: 120, h: 14, type: 'ledge' },
-    { x: 3650, y: 200, w: 100, h: 14, type: 'ledge' },
-    { x: 4100, y: 260, w: 120, h: 14, type: 'ledge' },
-    { x: 4350, y: 210, w: 100, h: 14, type: 'ledge' },
-    { x: 4600, y: 260, w: 120, h: 14, type: 'ledge' },
-  ];
+  platforms = JSON.parse(JSON.stringify(stageData.platforms));
 
-  // Decorative jungle elements
   decor = [];
+  const decorTypes = stage === 1 ? ['tree', 'bush', 'rock'] :
+                     stage === 2 ? ['crate', 'barrel', 'pipe'] :
+                     ['crystal', 'alienplant', 'rock'];
   for (let i = 0; i < 60; i++) {
     decor.push({
       x: rand(0, levelWidth),
       y: 340,
-      type: Math.random() < 0.4 ? 'tree' : (Math.random() < 0.5 ? 'bush' : 'rock'),
+      type: decorTypes[randi(0, decorTypes.length)],
       scale: rand(0.7, 1.3),
     });
   }
-  // background trees (parallax)
   for (let i = 0; i < 30; i++) {
     decor.push({ x: rand(0, levelWidth), y: rand(200, 320), type: 'bgtree', scale: rand(1.5, 2.5) });
   }
 
-  // Pre-place some enemies
-  placeEnemy(750, 'soldier', 1);
-  placeEnemy(1050, 'soldier', -1);
-  placeEnemy(1400, 'turret');
-  placeEnemy(1800, 'soldier', -1);
-  placeEnemy(2200, 'soldier', 1);
-  placeEnemy(2500, 'turret');
-  placeEnemy(2800, 'soldier', -1);
-  placeEnemy(3100, 'soldier', 1);
-  placeEnemy(3500, 'turret');
-  placeEnemy(3800, 'soldier', -1);
-  placeEnemy(4200, 'soldier', 1);
-  placeEnemy(4500, 'turret');
-  placeEnemy(4800, 'soldier', -1);
+  for (const eData of stageData.enemies) {
+    placeEnemy(eData.x, eData.type, eData.dir);
+  }
+
+  stageNameEl.textContent = stageData.name;
 }
 
 function placeEnemy(x, type, dir) {
@@ -344,14 +595,13 @@ function updatePlayer() {
   const jumpHeld = keys['Space'] || keys['KeyW'] || keys['ArrowUp'];
   const shootHeld = keys['KeyZ'] || keys['KeyJ'] || keys['ControlLeft'] || keys['ControlRight'];
 
-  // Determine aim direction
   player.aimUp = false;
   player.crouch = false;
   let ax = 0, ay = 0;
 
   if (down && !up && player.onGround) {
     player.crouch = true;
-    ay = 1; // aiming down/forward while prone
+    ay = 1;
     ax = player.facing;
   } else if (up && !left && !right) {
     player.aimUp = true;
@@ -369,12 +619,10 @@ function updatePlayer() {
     else { ax = player.facing; }
   }
 
-  // If jumping and aiming down
   if (!player.onGround && down && !up) {
     ay = 1; ax = player.facing;
   }
 
-  // Normalize diagonal
   if (ax !== 0 && ay !== 0) {
     const len = Math.sqrt(ax*ax + ay*ay);
     player.aimDir = { x: ax/len, y: ay/len };
@@ -382,54 +630,44 @@ function updatePlayer() {
     player.aimDir = { x: ax, y: ay === 0 ? 0 : ay };
   }
 
-  // Horizontal movement
   const speed = player.crouch ? 0 : 1.6;
   if (left && !player.crouch) player.vx = -speed;
   else if (right && !player.crouch) player.vx = speed;
   else player.vx *= Math.pow(0.7, dt);
 
-  // Jump
   if (jumpHeld && player.onGround && !player.crouch) {
     player.vy = -6.5;
     player.onGround = false;
   }
-  // Variable jump
   if (!jumpHeld && player.vy < -3) player.vy = -3;
 
-  // Gravity
   player.vy += 0.30 * dt;
   if (player.vy > 9) player.vy = 9;
 
-  // Apply movement with collision
   player.x += player.vx * dt;
   resolvePlatformsX();
   player.y += player.vy * dt;
   player.onGround = false;
   resolvePlatformsY();
 
-  // Boundaries
   if (player.x < 0) player.x = 0;
   if (player.x > levelWidth - player.w) player.x = levelWidth - player.w;
   if (player.y > H) { killPlayer(); }
 
-  // Run animation
   if (Math.abs(player.vx) > 0.5 && player.onGround) {
     player.runFrame += 0.25 * dt;
   } else {
     player.runFrame = 0;
   }
 
-  // Invulnerability
   if (player.invuln > 0) player.invuln -= dt;
 
-  // Shooting
   if (shootCooldown > 0) shootCooldown -= dt;
   if (shootHeld && shootCooldown <= 0) {
     shoot();
     shootCooldown = WEAPONS[currentWeapon].rate;
   }
 
-  // Check level clear
   if (player.x > levelWidth - 60) {
     triggerStageClear();
   }
@@ -458,7 +696,6 @@ function resolvePlatformsY() {
       }
     }
   }
-  // Ground level fallback
   if (player.y + player.h >= 380 && player.vy >= 0) {
     player.y = 380 - player.h;
     player.vy = 0;
@@ -473,7 +710,6 @@ function shoot() {
   const cx = player.x + player.w / 2;
   const cy = player.y + player.h / 2;
 
-  // Determine muzzle position
   if (player.crouch) {
     by = player.y + player.h - 8;
     bx = cx + player.facing * 14;
@@ -489,7 +725,6 @@ function shoot() {
   const dy = player.aimDir.y;
 
   if (w.type === 'spread') {
-    // 5-way spread
     const baseAngle = Math.atan2(dy, dx);
     for (let i = -2; i <= 2; i++) {
       const a = baseAngle + i * 0.18;
@@ -507,7 +742,6 @@ function shoot() {
     bullets.push(makeBullet(bx, by, dx * w.speed, dy * w.speed, w));
   }
 
-  // Muzzle flash
   spawnParticles(bx, by, w.color, 3, 2);
 }
 
@@ -532,7 +766,7 @@ function enemyShoot(e) {
   eBullets.push({
     x: cx, y: cy, w: 6, h: 6,
     vx: dx * sp, vy: dy * sp,
-    life: 200, color: '#ff4040',
+    life: 200, color: stage === 3 ? '#ff00ff' : '#ff4040',
   });
 }
 
@@ -543,7 +777,6 @@ function updateEnemies() {
     e.hitFlash = Math.max(0, e.hitFlash - dt);
 
     if (e.type === 'soldier') {
-      // Move toward player horizontally if on screen
       const dx = player.x - e.x;
       const dist = Math.abs(dx);
       if (dist > 250 && dist < 600) {
@@ -552,12 +785,10 @@ function updateEnemies() {
       } else {
         e.vx *= Math.pow(0.8, dt);
       }
-      // Gravity
       e.vy += 0.30 * dt;
       if (e.vy > 9) e.vy = 9;
       e.x += e.vx * dt;
       e.y += e.vy * dt;
-      // Ground
       e.onGround = false;
       for (const p of platforms) {
         if (aabb(e, p) && e.vy > 0) {
@@ -567,9 +798,7 @@ function updateEnemies() {
         }
       }
       if (e.y + e.h >= 380) { e.y = 380 - e.h; e.vy = 0; e.onGround = true; }
-      // Boundary
       if (e.x < 0) e.x = 0;
-      // Shoot
       e.fireTimer -= dt;
       if (e.fireTimer <= 0 && Math.abs(player.x - e.x) < 450) {
         enemyShoot(e);
@@ -584,14 +813,10 @@ function updateEnemies() {
       }
     }
 
-    // Remove if fell off
     if (e.y > H + 100) { enemies.splice(i, 1); continue; }
-
-    // Cull if too far behind
     if (e.x < cameraX - 200) { enemies.splice(i, 1); continue; }
   }
 
-  // Dynamic spawning
   spawnTimer -= dt;
   if (spawnTimer <= 0 && enemies.filter(e => e.type === 'soldier').length < 6) {
     const sx = cameraX + W + rand(50, 200);
@@ -601,7 +826,6 @@ function updateEnemies() {
     spawnTimer = randi(180, 400);
   }
 
-  // Flying capsule (power-up carrier)
   capsuleTimer -= dt;
   if (capsuleTimer <= 0) {
     spawnCapsule();
@@ -626,7 +850,6 @@ function spawnCapsule() {
 
 // ---------- Bullets Update ----------
 function updateBullets() {
-  // Player bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.x += b.vx * dt;
@@ -636,11 +859,9 @@ function updateBullets() {
       b.t = (b.t || 0) + 0.3 * dt;
       b.vy += Math.sin(b.t) * 0.3 * dt;
     }
-    // Off screen
     if (b.life <= 0 || b.x < cameraX - 50 || b.x > cameraX + W + 50 || b.y < -50 || b.y > H + 50) {
       bullets.splice(i, 1); continue;
     }
-    // Hit enemies
     let hit = false;
     for (let j = enemies.length - 1; j >= 0; j--) {
       const e = enemies[j];
@@ -661,7 +882,6 @@ function updateBullets() {
     }
     if (hit && !b.pierce) continue;
 
-    // Hit capsules
     for (let j = powerups.length - 1; j >= 0; j--) {
       const pu = powerups[j];
       if (pu.type === 'capsule' && aabb(b, pu)) {
@@ -669,7 +889,6 @@ function updateBullets() {
         spawnParticles(pu.x, pu.y, '#80ff80', 5, 3);
         b.hits.add(pu);
         if (pu.hp <= 0) {
-          // Convert to weapon pickup
           pu.type = 'weapon';
           pu.vy = 0;
           pu.vx = 0;
@@ -681,7 +900,6 @@ function updateBullets() {
     }
   }
 
-  // Enemy bullets
   for (let i = eBullets.length - 1; i >= 0; i--) {
     const b = eBullets[i];
     b.x += b.vx * dt;
@@ -715,7 +933,6 @@ function updatePowerups() {
       pu.vy += 0.42 * dt;
       if (pu.vy > 12) pu.vy = 12;
       pu.y += pu.vy * dt;
-      // Land on platforms
       for (const p of platforms) {
         if (aabb(pu, p) && pu.vy > 0) {
           pu.y = p.y - pu.h;
@@ -724,7 +941,6 @@ function updatePowerups() {
       }
       if (pu.y + pu.h >= 380) { pu.y = 380 - pu.h; pu.vy = 0; }
       pu.bobT = (pu.bobT || 0) + 0.1 * dt;
-      // Collect
       if (!player.dead && aabb(pu, player)) {
         currentWeapon = pu.weapon;
         weaponEl.textContent = WEAPONS[pu.weapon].name;
@@ -733,7 +949,6 @@ function updatePowerups() {
         spawnParticles(pu.x + pu.w/2, pu.y + pu.h/2, WEAPONS[pu.weapon].color, 10, 4);
         powerups.splice(i, 1); continue;
       }
-      // Cull
       if (pu.x < cameraX - 200) { powerups.splice(i, 1); continue; }
     }
   }
@@ -788,17 +1003,16 @@ function updateCamera() {
 // ============================================================
 
 function drawBackground() {
-  // Sky gradient
+  const t = currentTheme;
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#1a2a4a');
-  g.addColorStop(0.4, '#2a4a6a');
-  g.addColorStop(0.7, '#3a6a4a');
-  g.addColorStop(1, '#1a3a1a');
+  g.addColorStop(0, t.skyTop);
+  g.addColorStop(0.4, t.skyMid);
+  g.addColorStop(0.7, t.skyBot);
+  g.addColorStop(1, t.skyTop);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  // Distant mountains (parallax 0.2)
-  ctx.fillStyle = '#1a3a2a';
+  ctx.fillStyle = t.mountain;
   const mOff = -cameraX * 0.2;
   for (let i = 0; i < 8; i++) {
     const mx = mOff + i * 400;
@@ -809,23 +1023,22 @@ function drawBackground() {
     ctx.fill();
   }
 
-  // Mid trees (parallax 0.4)
   for (const d of decor) {
     if (d.type !== 'bgtree') continue;
     const sx = d.x - cameraX * 0.4;
     if (sx < -100 || sx > W + 100) continue;
-    drawBgTree(sx, d.y, d.scale);
+    drawBgTree(sx, d.y, d.scale, t);
   }
 }
 
-function drawBgTree(x, y, s) {
-  ctx.fillStyle = '#0a2a0a';
+function drawBgTree(x, y, s, t) {
+  ctx.fillStyle = t.bgTree;
   ctx.fillRect(x - 3*s, y, 6*s, 40*s);
-  ctx.fillStyle = '#1a3a1a';
+  ctx.fillStyle = t.bgTreeLeaf;
   ctx.beginPath();
   ctx.arc(x, y - 10*s, 30*s, 0, Math.PI*2);
   ctx.fill();
-  ctx.fillStyle = '#0a2a0a';
+  ctx.fillStyle = t.bgTree;
   ctx.beginPath();
   ctx.arc(x - 12*s, y, 22*s, 0, Math.PI*2);
   ctx.arc(x + 12*s, y, 22*s, 0, Math.PI*2);
@@ -833,36 +1046,32 @@ function drawBgTree(x, y, s) {
 }
 
 function drawPlatforms() {
+  const t = currentTheme;
   for (const p of platforms) {
     const sx = p.x - cameraX;
     if (sx + p.w < 0 || sx > W) continue;
     if (p.type === 'ground') {
-      // Dirt ground
-      ctx.fillStyle = '#3a2a1a';
+      ctx.fillStyle = t.ground;
       ctx.fillRect(sx, p.y, p.w, p.h);
-      ctx.fillStyle = '#2a4a1a';
+      ctx.fillStyle = t.groundTop;
       ctx.fillRect(sx, p.y, p.w, 6);
-      // Grass tufts
-      ctx.fillStyle = '#4a7a2a';
+      ctx.fillStyle = t.grass;
       for (let i = 0; i < p.w; i += 12) {
         ctx.fillRect(sx + i, p.y - 2, 3, 4);
         ctx.fillRect(sx + i + 5, p.y - 3, 2, 5);
       }
-      // Dirt texture
-      ctx.fillStyle = '#2a1a0a';
+      ctx.fillStyle = t.groundTop;
       for (let i = 0; i < p.w; i += 20) {
         ctx.fillRect(sx + i + rand(0,8), p.y + 12, 3, 3);
       }
     } else {
-      // Ledge - wooden/log platform
-      ctx.fillStyle = '#5a3a1a';
+      ctx.fillStyle = t.ledge;
       ctx.fillRect(sx, p.y, p.w, p.h);
-      ctx.fillStyle = '#3a2a0a';
+      ctx.fillStyle = t.ledgeTop;
       ctx.fillRect(sx, p.y + p.h - 4, p.w, 4);
-      ctx.fillStyle = '#6a4a2a';
+      ctx.fillStyle = t.ledgeTop;
       ctx.fillRect(sx, p.y, p.w, 3);
-      // Moss
-      ctx.fillStyle = '#3a6a2a';
+      ctx.fillStyle = t.moss;
       for (let i = 0; i < p.w; i += 10) {
         ctx.fillRect(sx + i, p.y - 1, 4, 2);
       }
@@ -871,45 +1080,51 @@ function drawPlatforms() {
 }
 
 function drawDecor() {
+  const t = currentTheme;
   for (const d of decor) {
     if (d.type === 'bgtree') continue;
     const sx = d.x - cameraX;
     if (sx < -100 || sx > W + 100) continue;
-    if (d.type === 'tree') drawTree(sx, d.y, d.scale);
-    else if (d.type === 'bush') drawBush(sx, d.y, d.scale);
-    else if (d.type === 'rock') drawRock(sx, d.y, d.scale);
+    if (d.type === 'tree') drawTree(sx, d.y, d.scale, t);
+    else if (d.type === 'bush') drawBush(sx, d.y, d.scale, t);
+    else if (d.type === 'rock') drawRock(sx, d.y, d.scale, t);
+    else if (d.type === 'crate') drawCrate(sx, d.y, d.scale, t);
+    else if (d.type === 'barrel') drawBarrel(sx, d.y, d.scale, t);
+    else if (d.type === 'pipe') drawPipe(sx, d.y, d.scale, t);
+    else if (d.type === 'crystal') drawCrystal(sx, d.y, d.scale, t);
+    else if (d.type === 'alienplant') drawAlienPlant(sx, d.y, d.scale, t);
   }
 }
 
-function drawTree(x, y, s) {
-  ctx.fillStyle = '#3a2a0a';
+function drawTree(x, y, s, t) {
+  ctx.fillStyle = t.groundTop;
   ctx.fillRect(x - 4*s, y - 60*s, 8*s, 60*s);
-  ctx.fillStyle = '#1a4a1a';
+  ctx.fillStyle = t.tree;
   ctx.beginPath();
   ctx.arc(x, y - 70*s, 25*s, 0, Math.PI*2);
   ctx.fill();
-  ctx.fillStyle = '#2a5a2a';
+  ctx.fillStyle = t.treeLeaf;
   ctx.beginPath();
   ctx.arc(x - 10*s, y - 75*s, 18*s, 0, Math.PI*2);
   ctx.arc(x + 12*s, y - 72*s, 16*s, 0, Math.PI*2);
   ctx.fill();
 }
 
-function drawBush(x, y, s) {
-  ctx.fillStyle = '#1a3a1a';
+function drawBush(x, y, s, t) {
+  ctx.fillStyle = t.bush;
   ctx.beginPath();
   ctx.arc(x, y - 5*s, 12*s, 0, Math.PI*2);
   ctx.arc(x - 10*s, y, 10*s, 0, Math.PI*2);
   ctx.arc(x + 10*s, y, 10*s, 0, Math.PI*2);
   ctx.fill();
-  ctx.fillStyle = '#2a5a2a';
+  ctx.fillStyle = t.bushLeaf;
   ctx.beginPath();
   ctx.arc(x - 4*s, y - 8*s, 8*s, 0, Math.PI*2);
   ctx.fill();
 }
 
-function drawRock(x, y, s) {
-  ctx.fillStyle = '#4a4a4a';
+function drawRock(x, y, s, t) {
+  ctx.fillStyle = t.rock;
   ctx.beginPath();
   ctx.moveTo(x - 14*s, y);
   ctx.lineTo(x - 8*s, y - 16*s);
@@ -917,11 +1132,94 @@ function drawRock(x, y, s) {
   ctx.lineTo(x + 14*s, y - 8*s);
   ctx.lineTo(x + 12*s, y);
   ctx.fill();
-  ctx.fillStyle = '#5a5a5a';
+  ctx.fillStyle = t.rockLight;
   ctx.beginPath();
   ctx.moveTo(x - 8*s, y - 16*s);
   ctx.lineTo(x + 4*s, y - 18*s);
   ctx.lineTo(x + 2*s, y - 10*s);
+  ctx.fill();
+}
+
+function drawCrate(x, y, s, t) {
+  ctx.fillStyle = '#5a4a3a';
+  ctx.fillRect(x - 10*s, y - 20*s, 20*s, 20*s);
+  ctx.fillStyle = '#6a5a4a';
+  ctx.fillRect(x - 8*s, y - 18*s, 16*s, 16*s);
+  ctx.strokeStyle = '#4a3a2a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - 10*s, y - 20*s, 20*s, 20*s);
+  ctx.beginPath();
+  ctx.moveTo(x - 10*s, y - 20*s);
+  ctx.lineTo(x + 10*s, y);
+  ctx.moveTo(x + 10*s, y - 20*s);
+  ctx.lineTo(x - 10*s, y);
+  ctx.stroke();
+}
+
+function drawBarrel(x, y, s, t) {
+  ctx.fillStyle = '#4a4a4a';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 10*s, 8*s, 12*s, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#5a5a5a';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 10*s, 6*s, 10*s, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#3a3a3a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(x, y - 16*s, 8*s, 2*s, 0, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(x, y - 4*s, 8*s, 2*s, 0, 0, Math.PI*2);
+  ctx.stroke();
+}
+
+function drawPipe(x, y, s, t) {
+  ctx.fillStyle = '#5a5a5a';
+  ctx.fillRect(x - 3*s, y - 30*s, 6*s, 30*s);
+  ctx.fillStyle = '#6a6a6a';
+  ctx.fillRect(x - 4*s, y - 30*s, 8*s, 4*s);
+  ctx.fillRect(x - 4*s, y - 6*s, 8*s, 4*s);
+}
+
+function drawCrystal(x, y, s, t) {
+  ctx.fillStyle = '#8a4aaa';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 25*s);
+  ctx.lineTo(x - 8*s, y - 8*s);
+  ctx.lineTo(x - 4*s, y);
+  ctx.lineTo(x + 4*s, y);
+  ctx.lineTo(x + 8*s, y - 8*s);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#aa6acc';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 25*s);
+  ctx.lineTo(x - 4*s, y - 10*s);
+  ctx.lineTo(x + 2*s, y - 8*s);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#cc88ee';
+  ctx.beginPath();
+  ctx.arc(x, y - 15*s, 2*s, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawAlienPlant(x, y, s, t) {
+  ctx.fillStyle = '#4a2a5a';
+  ctx.fillRect(x - 2*s, y - 20*s, 4*s, 20*s);
+  ctx.fillStyle = '#6a3a7a';
+  ctx.beginPath();
+  ctx.arc(x, y - 25*s, 8*s, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#8a4a9a';
+  ctx.beginPath();
+  ctx.arc(x - 3*s, y - 28*s, 5*s, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#ff44ff';
+  ctx.beginPath();
+  ctx.arc(x, y - 25*s, 2*s, 0, Math.PI*2);
   ctx.fill();
 }
 
@@ -946,17 +1244,15 @@ function drawPlayer() {
   const jumping = !player.onGround;
   const frame = Math.floor(player.runFrame) % 4;
 
-  // Colors
   const skin = '#e8b878';
   const bandana = '#e84020';
-  const shirt = '#3a6ab8';
-  const pants = '#2a4a2a';
+  const shirt = stage === 2 ? '#5a5a5a' : stage === 3 ? '#6a3a7a' : '#3a6ab8';
+  const pants = stage === 2 ? '#3a3a3a' : stage === 3 ? '#3a1a3a' : '#2a4a2a';
   const boots = '#2a1a0a';
   const gun = '#3a3a3a';
 
   const h = crouch ? 18 : player.h;
 
-  // Legs
   ctx.fillStyle = pants;
   if (crouch) {
     ctx.fillRect(sx + 2, sy + 18, 6, 8);
@@ -986,7 +1282,6 @@ function drawPlayer() {
     ctx.fillRect(sx + 9, sy + 28, 7, 4);
   }
 
-  // Body
   ctx.fillStyle = shirt;
   if (crouch) {
     ctx.fillRect(sx + 2, sy + 8, 14, 12);
@@ -994,7 +1289,6 @@ function drawPlayer() {
     ctx.fillRect(sx + 2, sy + 10, 14, 12);
   }
 
-  // Head
   ctx.fillStyle = skin;
   if (crouch) {
     ctx.fillRect(sx + 4, sy + 2, 10, 8);
@@ -1002,27 +1296,20 @@ function drawPlayer() {
     ctx.fillRect(sx + 4, sy + 2, 10, 9);
   }
 
-  // Bandana
   ctx.fillStyle = bandana;
   ctx.fillRect(sx + 4, sy + 2, 10, 3);
-  // Bandana tail
   ctx.fillRect(sx + 2, sy + 3, 3, 5);
 
-  // Gun
   ctx.fillStyle = gun;
   if (player.aimUp && !crouch) {
-    // Gun pointing up
     ctx.fillRect(cx - 1, sy - 6, 3, 12);
   } else if (crouch) {
-    // Prone gun
     ctx.fillRect(sx + 14, sy + 16, 12, 3);
   } else {
-    // Gun forward
     ctx.fillRect(sx + 14, sy + 12, 12, 3);
     ctx.fillRect(sx + 14, sy + 11, 3, 5);
   }
 
-  // Weapon color indicator on gun
   ctx.fillStyle = WEAPONS[currentWeapon].color;
   if (player.aimUp && !crouch) {
     ctx.fillRect(cx - 1, sy - 6, 3, 3);
@@ -1036,6 +1323,7 @@ function drawPlayer() {
 }
 
 function drawEnemies() {
+  const t = currentTheme;
   for (const e of enemies) {
     const sx = e.x - cameraX;
     if (sx + e.w < -20 || sx > W + 20) continue;
@@ -1047,14 +1335,14 @@ function drawEnemies() {
     }
 
     if (e.type === 'soldier') {
-      drawSoldier(sx, e.y, e.dir, e.animFrame, e.onGround);
+      drawSoldier(sx, e.y, e.dir, e.animFrame, e.onGround, t);
     } else if (e.type === 'turret') {
-      drawTurret(sx, e.y, e);
+      drawTurret(sx, e.y, e, t);
     }
   }
 }
 
-function drawSoldier(x, y, dir, frame, onGround) {
+function drawSoldier(x, y, dir, frame, onGround, t) {
   ctx.save();
   if (dir < 0) {
     ctx.translate(x + 10, 0);
@@ -1063,45 +1351,37 @@ function drawSoldier(x, y, dir, frame, onGround) {
   }
 
   const skin = '#d8a868';
-  const uniform = '#5a3a2a';
-  const helmet = '#3a3a1a';
+  const uniform = stage === 1 ? '#5a3a2a' : stage === 2 ? '#4a4a4a' : '#4a2a4a';
+  const helmet = stage === 1 ? '#3a3a1a' : stage === 2 ? '#3a3a3a' : '#3a1a3a';
   const gun = '#2a2a2a';
 
   const f = Math.floor(frame) % 4;
   const offsets = [[0,0],[1,0],[0,0],[-1,0]];
 
-  // Legs
   ctx.fillStyle = uniform;
   ctx.fillRect(x + 3, y + 18 + offsets[f][0], 5, 12);
   ctx.fillRect(x + 12, y + 18 + offsets[f][1], 5, 12);
-  // Boots
   ctx.fillStyle = '#1a1a0a';
   ctx.fillRect(x + 3, y + 28 + offsets[f][0], 6, 4);
   ctx.fillRect(x + 12, y + 28 + offsets[f][1], 6, 4);
-  // Body
   ctx.fillStyle = uniform;
   ctx.fillRect(x + 3, y + 8, 14, 12);
-  // Head
   ctx.fillStyle = skin;
   ctx.fillRect(x + 5, y, 10, 8);
-  // Helmet
   ctx.fillStyle = helmet;
   ctx.fillRect(x + 4, y - 2, 12, 5);
   ctx.fillRect(x + 4, y, 12, 2);
-  // Gun
   ctx.fillStyle = gun;
   ctx.fillRect(x + 15, y + 10, 10, 3);
 
   ctx.restore();
 }
 
-function drawTurret(x, y, e) {
-  // Base
-  ctx.fillStyle = '#3a3a3a';
+function drawTurret(x, y, e, t) {
+  ctx.fillStyle = stage === 3 ? '#5a3a5a' : '#3a3a3a';
   ctx.fillRect(x, y + 10, 24, 10);
-  ctx.fillStyle = '#5a5a5a';
+  ctx.fillStyle = stage === 3 ? '#7a5a7a' : '#5a5a5a';
   ctx.fillRect(x + 2, y + 8, 20, 4);
-  // Barrel - aim at player
   const cx = x + 12;
   const cy = y + 12;
   const px = player.x + player.w/2 - cameraX;
@@ -1112,26 +1392,23 @@ function drawTurret(x, y, e) {
   ctx.rotate(angle);
   ctx.fillStyle = '#2a2a2a';
   ctx.fillRect(0, -2, 16, 4);
-  ctx.fillStyle = '#ff4040';
+  ctx.fillStyle = stage === 3 ? '#ff00ff' : '#ff4040';
   ctx.fillRect(12, -1, 4, 2);
   ctx.restore();
-  // Dome
-  ctx.fillStyle = '#6a6a6a';
+  ctx.fillStyle = stage === 3 ? '#8a6a8a' : '#6a6a6a';
   ctx.beginPath();
   ctx.arc(cx, y + 10, 8, Math.PI, 0);
   ctx.fill();
-  ctx.fillStyle = '#4a4a4a';
+  ctx.fillStyle = stage === 3 ? '#6a4a6a' : '#4a4a4a';
   ctx.beginPath();
   ctx.arc(cx, y + 10, 5, Math.PI, 0);
   ctx.fill();
 }
 
 function drawBullets() {
-  // Player bullets
   for (const b of bullets) {
     const sx = b.x - cameraX;
     if (b.type === 'laser') {
-      // Laser beam
       const angle = Math.atan2(b.vy, b.vx);
       ctx.save();
       ctx.translate(sx, b.y);
@@ -1142,7 +1419,6 @@ function drawBullets() {
       ctx.fillRect(0, -1, b.len, 2);
       ctx.restore();
     } else if (b.type === 'fire') {
-      // Fireball
       ctx.fillStyle = b.color;
       ctx.beginPath();
       ctx.arc(sx, b.y, 5, 0, Math.PI*2);
@@ -1159,14 +1435,13 @@ function drawBullets() {
     }
   }
 
-  // Enemy bullets
   for (const b of eBullets) {
     const sx = b.x - cameraX;
     ctx.fillStyle = b.color;
     ctx.beginPath();
     ctx.arc(sx, b.y, 3, 0, Math.PI*2);
     ctx.fill();
-    ctx.fillStyle = '#ff8080';
+    ctx.fillStyle = stage === 3 ? '#ff88ff' : '#ff8080';
     ctx.beginPath();
     ctx.arc(sx, b.y, 1.5, 0, Math.PI*2);
     ctx.fill();
@@ -1179,7 +1454,6 @@ function drawPowerups() {
     if (sx + pu.w < -20 || sx > W + 20) continue;
 
     if (pu.type === 'capsule') {
-      // Flying capsule - spinning box
       ctx.save();
       ctx.translate(sx + pu.w/2, pu.y + pu.h/2);
       const rot = pu.bobT * 2;
@@ -1191,13 +1465,11 @@ function drawPowerups() {
       ctx.fillStyle = '#80ff80';
       ctx.fillRect(-3, -3, 6, 6);
       ctx.restore();
-      // Glow
       ctx.fillStyle = 'rgba(80,255,80,0.15)';
       ctx.beginPath();
       ctx.arc(sx + pu.w/2, pu.y + pu.h/2, 20 + Math.sin(pu.bobT*3)*3, 0, Math.PI*2);
       ctx.fill();
     } else if (pu.type === 'weapon') {
-      // Weapon letter pickup
       const bob = Math.sin(pu.bobT) * 3;
       const w = WEAPONS[pu.weapon];
       ctx.fillStyle = w.color;
@@ -1209,7 +1481,6 @@ function drawPowerups() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(pu.weapon, sx + pu.w/2, pu.y + bob + pu.h/2 + 1);
-      // Glow
       ctx.fillStyle = w.color;
       ctx.globalAlpha = 0.2;
       ctx.beginPath();
@@ -1251,21 +1522,18 @@ function drawParticles() {
 }
 
 function drawGoal() {
-  // Goal flag at end of level
   const gx = levelWidth - 50 - cameraX;
   if (gx > -50 && gx < W + 50) {
-    // Pole
     ctx.fillStyle = '#8a8a8a';
     ctx.fillRect(gx, 200, 4, 140);
-    // Flag
-    ctx.fillStyle = '#e84020';
+    const flagColor = stage === 1 ? '#e84020' : stage === 2 ? '#4a7a9e' : '#8a3aaa';
+    ctx.fillStyle = flagColor;
     const wave = Math.sin(Date.now() / 200) * 4;
     ctx.beginPath();
     ctx.moveTo(gx + 4, 205);
     ctx.lineTo(gx + 40 + wave, 215);
     ctx.lineTo(gx + 4, 240);
     ctx.fill();
-    // Flag detail
     ctx.fillStyle = '#ffe040';
     ctx.beginPath();
     ctx.arc(gx + 16, 222, 5, 0, Math.PI*2);
@@ -1274,12 +1542,9 @@ function drawGoal() {
 }
 
 function drawHUD() {
-  // Update DOM elements
   scoreEl.textContent = String(score).padStart(6, '0');
   hiScoreEl.textContent = String(Math.max(score, hiScore)).padStart(6, '0');
-  stageEl.textContent = stage;
 
-  // Lives display
   livesEl.innerHTML = '';
   for (let i = 0; i < lives; i++) {
     const d = document.createElement('div');
@@ -1313,12 +1578,10 @@ function update() {
           hiScore = score;
           localStorage.setItem('contra_hi', String(hiScore));
         }
-        showOverlay('GAME OVER', 'The jungle claims another soldier...', false);
+        showOverlay('GAME OVER', 'The battlefield claims another soldier...', false);
       } else {
-        // Respawn
         resetPlayer(player.facing);
         player.x = clamp(cameraX + 100, 0, levelWidth - player.w);
-        // Find ground
         player.y = findGroundY(player.x) - player.h;
         gameState = STATE.PLAYING;
       }
@@ -1327,7 +1590,6 @@ function update() {
     stateTimer += dt;
     updateParticles();
     if (stateTimer > 180) {
-      // Next stage or victory
       stage++;
       if (stage > 3) {
         gameState = STATE.GAMEOVER;
@@ -1336,10 +1598,9 @@ function update() {
           hiScore = score;
           localStorage.setItem('contra_hi', String(hiScore));
         }
-        showOverlay('VICTORY!', 'You cleared the jungle!', true);
+        showOverlay('VICTORY!', 'All stages cleared!', true);
       } else {
-        initLevel();
-        gameState = STATE.PLAYING;
+        showStageIntro();
       }
     }
   } else if (gameState === STATE.GAMEOVER) {
@@ -1349,13 +1610,11 @@ function update() {
   if (shakeTime > 0) shakeTime -= dt;
   updateFlash();
 
-  // Clear justPressed at end of frame
   for (const k in justPressed) justPressed[k] = false;
 }
 
 function render() {
   ctx.save();
-  // Screen shake
   if (shakeTime > 0) {
     const sx = rand(-shakeMag, shakeMag);
     const sy = rand(-shakeMag, shakeMag);
@@ -1374,7 +1633,6 @@ function render() {
 
   ctx.restore();
 
-  // Pause overlay
   if (gameState === STATE.PAUSED) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, W, H);
@@ -1399,15 +1657,34 @@ function showOverlay(title, subtitle, isWin) {
   overlay.style.display = 'flex';
 }
 
+function showStageIntro() {
+  const stageData = STAGES[stage];
+  const stageColors = { 1: '#4a9e3a', 2: '#4a7a9e', 3: '#8a3aaa' };
+  introStageNumber.textContent = `STAGE ${stage}`;
+  introStageNumber.style.color = '#888';
+  introStageTitle.textContent = stageData.name;
+  introStageTitle.style.color = stageColors[stage];
+  introStageTitle.style.textShadow = `3px 3px 0 rgba(0,0,0,0.5), 0 0 20px ${stageColors[stage]}40`;
+  introStageSubtitle.textContent = stageData.subtitle;
+  stageIntroEl.style.display = 'flex';
+  gameState = STATE.INTRO;
+  stateTimer = 0;
+}
+
 function gameLoop(timestamp) {
   if (lastTime === 0) lastTime = timestamp;
   dt = Math.min((timestamp - lastTime) / 16.667, 3);
   lastTime = timestamp;
 
-  // Handle global key inputs
   if (gameState === STATE.TITLE) {
     if (consumeKey('Enter') || consumeKey('NumpadEnter')) {
       startGame();
+    }
+  } else if (gameState === STATE.INTRO) {
+    if (consumeKey('Enter') || consumeKey('NumpadEnter')) {
+      stageIntroEl.style.display = 'none';
+      initLevel();
+      gameState = STATE.PLAYING;
     }
   } else if (gameState === STATE.PLAYING) {
     if (consumeKey('KeyP') || consumeKey('Escape')) {
@@ -1422,15 +1699,15 @@ function gameLoop(timestamp) {
       gameState = STATE.TITLE;
       overlay.innerHTML = `
         <h1>CONTRA</h1>
-        <h2>JUNGLE MISSION</h2>
-        <p>Pierce the enemy jungle stronghold.</p>
+        <h2>RUN & GUN</h2>
+        <p>Three stages. One soldier. No mercy.</p>
         <p>One hit kills. Stay sharp, soldier.</p>
         <div class="controls">
-          <p><span>ARROWS / WASD</span> &mdash; Move &amp; Aim</p>
-          <p><span>SPACE / W / UP</span> &mdash; Jump</p>
-          <p><span>Z / J</span> &mdash; Shoot &nbsp;&nbsp; <span>DOWN+S</span> &mdash; Crouch</p>
-          <p><span>UP</span> &mdash; Aim Up &nbsp;&nbsp; <span>UP+DIR</span> &mdash; Aim Diagonal</p>
-          <p><span>P</span> &mdash; Pause &nbsp;&nbsp; <span>ENTER</span> &mdash; Start / Continue</p>
+          <p><span>ARROWS / WASD</span> — Move & Aim</p>
+          <p><span>SPACE / W / UP</span> — Jump</p>
+          <p><span>Z / J</span> — Shoot &nbsp;&nbsp; <span>DOWN+S</span> — Crouch</p>
+          <p><span>UP</span> — Aim Up &nbsp;&nbsp; <span>UP+DIR</span> — Aim Diagonal</p>
+          <p><span>P</span> — Pause &nbsp;&nbsp; <span>ENTER</span> — Start / Continue</p>
         </div>
         <p class="blink">PRESS ENTER TO START</p>
       `;
@@ -1450,13 +1727,10 @@ function startGame() {
   stage = 1;
   currentWeapon = 'R';
   weaponEl.textContent = WEAPONS.R.name;
-  initLevel();
-  gameState = STATE.PLAYING;
-  overlay.style.display = 'none';
+  showStageIntro();
 }
 
 // ---------- Start ----------
-initLevel();
 gameState = STATE.TITLE;
 requestAnimationFrame(gameLoop);
 </script>
