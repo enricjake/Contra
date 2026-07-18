@@ -475,7 +475,7 @@ let currentWeapon = 'R';
 let shootCooldown = 0;
 
 // ---------- Entities ----------
-let player, bullets, eBullets, enemies, powerups, particles, platforms, decor, explosions;
+let player = { dead: true }, bullets = [], eBullets = [], enemies = [], powerups = [], particles = [], platforms = [], decor = [], explosions = [];
 
 function resetPlayer(facing = 1) {
   player = {
