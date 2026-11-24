@@ -2,6 +2,8 @@
 
 A browser-based tribute to Konami's classic 1987 run-and-gun **Contra**.
 
+![CONTRA gameplay](assets/gameplay.png)
+
 ![CONTRA](https://img.shields.io/badge/-CONTRA-e84020?style=for-the-badge&logo=arcade&logoColor=white)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-e34c26?style=for-the-badge&logo=html5&logoColor=white)
 ![No Dependencies](https://img.shields.io/badge/No%20Dependencies-zero%20npm-green?style=for-the-badge)
